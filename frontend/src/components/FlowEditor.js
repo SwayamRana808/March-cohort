@@ -1,19 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Settings, ChevronRight, ChevronLeft, Plus, X } from 'lucide-react';
+import { Copy, Settings, ChevronRight, ChevronLeft, Plus, X, Trash2 } from 'lucide-react';
+import WhatsAppPreview from './WhatsAppPreview';
 
-const FlowEditor = ({ flow, onFlowChange }) => {
-  const [activeScreen, setActiveScreen] = useState(0);
+const FlowEditor = ({
+  showPreview,
+  showJsonPreview,
+  setShowJsonPreview,
+  flow,
+  activeScreen,
+  selectedField,
+  setSelectedField,
+  handleScreenTitleChange,
+  handleFieldEdit,
+  handleAddField,
+  handleDeleteField,
+  handleDragStart,
+  handleDrop,
+  handleDragOver
+}) => {
   const [showJson, setShowJson] = useState(false);
 
   const handleCopyJson = () => {
     const jsonString = JSON.stringify(flow, null, 2);
     navigator.clipboard.writeText(jsonString);
-  };
-
-  const handleScreenChange = (screenIndex) => {
-    setActiveScreen(screenIndex);
   };
 
   const handleFieldChange = (screenIndex, fieldName, value) => {
@@ -25,37 +36,7 @@ const FlowEditor = ({ flow, onFlowChange }) => {
     if (field) {
       field.value = value;
     }
-    onFlowChange(newFlow);
-  };
-
-  const handleAddScreen = () => {
-    const newFlow = { ...flow };
-    const newScreen = {
-      id: `SCREEN_${newFlow.screens.length}`,
-      title: `Screen ${newFlow.screens.length + 1}`,
-      data: {},
-      layout: {
-        type: "SingleColumnLayout",
-        children: [
-          {
-            type: "Form",
-            name: "form",
-            children: []
-          }
-        ]
-      }
-    };
-    newFlow.screens.push(newScreen);
-    onFlowChange(newFlow);
-  };
-
-  const handleDeleteScreen = (screenIndex) => {
-    const newFlow = { ...flow };
-    newFlow.screens.splice(screenIndex, 1);
-    if (activeScreen >= newFlow.screens.length) {
-      setActiveScreen(newFlow.screens.length - 1);
-    }
-    onFlowChange(newFlow);
+    handleFieldEdit(screenIndex, fieldName, value);
   };
 
   const renderField = (field, screenIndex) => {
@@ -122,85 +103,183 @@ const FlowEditor = ({ flow, onFlowChange }) => {
     }
   };
 
-  const renderScreen = (screen, index) => {
-    const form = screen.layout.children.find(child => child.type === 'Form');
-    const fields = form ? form.children : [];
-
-    return (
-      <div key={screen.id} className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-medium text-gray-900">{screen.title}</h2>
-          <button
-            onClick={() => handleDeleteScreen(index)}
-            className="p-1 text-gray-400 hover:text-gray-500"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="space-y-4">
-          {fields.map(field => renderField(field, index))}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setActiveScreen(Math.max(0, activeScreen - 1))}
-            disabled={activeScreen === 0}
-            className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <span className="text-sm text-gray-600">
-            Screen {activeScreen + 1} of {flow.screens.length}
-          </span>
-          <button
-            onClick={() => setActiveScreen(Math.min(flow.screens.length - 1, activeScreen + 1))}
-            disabled={activeScreen === flow.screens.length - 1}
-            className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+    <div className={`${showPreview ? 'col-span-12' : 'col-span-6'}`}>
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-gray-900">
+            {showPreview ? 'Flow Preview' : 'Flow Editor'}
+          </h3>
+          {!showPreview && (
+            <button
+              onClick={() => setShowJsonPreview(!showJsonPreview)}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showJsonPreview ? 'Hide JSON' : 'Show JSON'}
+            </button>
+          )}
         </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => setShowJson(!showJson)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {showJson ? 'Hide JSON' : 'Show JSON'}
-          </button>
-          <button
-            onClick={handleCopyJson}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Flow JSON
-          </button>
-          <button
-            onClick={handleAddScreen}
-            className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Screen
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          {renderScreen(flow.screens[activeScreen], activeScreen)}
-        </div>
-        {showJson && (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <pre className="text-sm text-gray-800 overflow-auto max-h-[600px]">
+        {showPreview ? (
+          <WhatsAppPreview screen={flow.screens[activeScreen]} />
+        ) : (
+          showJsonPreview ? (
+            <pre className="bg-gray-50 p-4 rounded-md overflow-auto max-h-96 text-sm">
               {JSON.stringify(flow, null, 2)}
             </pre>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div 
+                className="p-4 border rounded-lg"
+                onDrop={(e) => handleDrop(e, activeScreen)}
+                onDragOver={handleDragOver}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <input
+                    type="text"
+                    value={flow.screens[activeScreen].title}
+                    onChange={(e) => handleScreenTitleChange(activeScreen, e.target.value)}
+                    className="text-sm font-medium text-gray-900 border-none bg-transparent focus:ring-1 focus:ring-blue-500 rounded px-2 py-1"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleAddField(activeScreen, 'TextSubheading')}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Add Question
+                    </button>
+                    <button
+                      onClick={() => handleAddField(activeScreen, 'RadioButtonsGroup')}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Add Options
+                    </button>
+                    <button
+                      onClick={() => handleAddField(activeScreen, 'TextArea')}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Add Input
+                    </button>
+                  </div>
+                </div>
+                {flow.screens[activeScreen].layout.children.map((child, childIndex) => (
+                  <div key={childIndex} className="pl-4 border-l-2 border-gray-200">
+                    {child.type === 'Form' && child.children.map((formChild, formIndex) => (
+                      <div 
+                        key={formIndex} 
+                        className={`mb-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors ${selectedField === formIndex ? 'ring-2 ring-blue-500' : ''}`}
+                        onClick={() => setSelectedField(formIndex)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex-1">
+                            {formChild.type === 'TextSubheading' ? (
+                              <div className="flex items-center space-x-2 w-full">
+                                <input
+                                  type="text"
+                                  value={formChild.text || ''}
+                                  onChange={(e) => handleFieldEdit(activeScreen, formIndex, { text: e.target.value })}
+                                  className="flex-1 text-sm text-gray-900 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded px-3 py-2"
+                                  placeholder="Enter question"
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteField(activeScreen, formIndex);
+                                  }}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-200 rounded"
+                                  title="Delete question"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    value={formChild.label || ''}
+                                    onChange={(e) => handleFieldEdit(activeScreen, formIndex, { label: e.target.value })}
+                                    className="flex-1 text-sm text-gray-900 border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded px-3 py-2"
+                                    placeholder="Enter label"
+                                  />
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteField(activeScreen, formIndex);
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-gray-200 rounded"
+                                    title="Delete field"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                                <div className="flex items-center">
+                                  <label className="inline-flex items-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={formChild.required || false}
+                                      onChange={(e) => handleFieldEdit(activeScreen, formIndex, { required: e.target.checked })}
+                                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-600">Required</span>
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {(formChild.type === 'RadioButtonsGroup' || formChild.type === 'Dropdown') && (
+                          <div className="mt-4 space-y-2 pl-4 border-l-2 border-gray-200">
+                            <div className="text-sm font-medium text-gray-700 mb-2">Options:</div>
+                            {formChild['data-source']?.map((option, optIndex) => (
+                              <div key={option.id} className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={option.title}
+                                  onChange={(e) => {
+                                    const newDataSource = [...formChild['data-source']];
+                                    newDataSource[optIndex].title = e.target.value;
+                                    handleFieldEdit(activeScreen, formIndex, { 'data-source': newDataSource });
+                                  }}
+                                  className="flex-1 text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 px-3 py-2"
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const newDataSource = [...formChild['data-source']];
+                                    newDataSource.splice(optIndex, 1);
+                                    handleFieldEdit(activeScreen, formIndex, { 'data-source': newDataSource });
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-gray-200 rounded"
+                                  title="Delete option"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newDataSource = [...(formChild['data-source'] || [])];
+                                newDataSource.push({
+                                  id: `${newDataSource.length}_option${newDataSource.length + 1}`,
+                                  title: `Option ${newDataSource.length + 1}`
+                                });
+                                handleFieldEdit(activeScreen, formIndex, { 'data-source': newDataSource });
+                              }}
+                              className="inline-flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50"
+                            >
+                              <Plus className="h-4 w-4" />
+                              <span>Add Option</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
         )}
       </div>
     </div>
