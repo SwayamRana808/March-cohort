@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Copy, Settings, ChevronRight, ChevronLeft, Plus, X, Trash2 } from 'lucide-react';
 import WhatsAppPreview from './WhatsAppPreview';
+import { publishFlow } from '@/services/whatsappService';
 
 const FlowEditor = ({
   showPreview,
@@ -18,9 +19,13 @@ const FlowEditor = ({
   handleDeleteField,
   handleDragStart,
   handleDrop,
-  handleDragOver
+  handleDragOver,
+  flowName
 }) => {
   const [showJson, setShowJson] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [publishError, setPublishError] = useState(null);
 
   const handleCopyJson = () => {
     const jsonString = JSON.stringify(flow, null, 2);
@@ -39,70 +44,20 @@ const FlowEditor = ({
     handleFieldEdit(screenIndex, fieldName, value);
   };
 
-  const renderField = (field, screenIndex) => {
-    switch (field.type) {
-      case 'TextSubheading':
-        return (
-          <div key={field.text} className="mb-4">
-            <h3 className="text-sm font-medium text-gray-900">{field.text}</h3>
-          </div>
-        );
-      case 'RadioButtonsGroup':
-        return (
-          <div key={field.name} className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{field.label}</label>
-            <div className="space-y-2">
-              {field['data-source'].map((option) => (
-                <div key={option.id} className="flex items-center">
-                  <input
-                    type="radio"
-                    name={field.name}
-                    value={option.id}
-                    checked={field.value === option.id}
-                    onChange={(e) => handleFieldChange(screenIndex, field.name, e.target.value)}
-                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                  />
-                  <label className="ml-2 text-sm text-gray-700">{option.title}</label>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 'Dropdown':
-        return (
-          <div key={field.name} className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{field.label}</label>
-            <select
-              value={field.value || ''}
-              onChange={(e) => handleFieldChange(screenIndex, field.name, e.target.value)}
-              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              <option value="">Select an option</option>
-              {field['data-source'].map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        );
-      case 'TextArea':
-        return (
-          <div key={field.name} className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">{field.label}</label>
-            <textarea
-              value={field.value || ''}
-              onChange={(e) => handleFieldChange(screenIndex, field.name, e.target.value)}
-              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              rows={4}
-            />
-          </div>
-        );
-      default:
-        return null;
+  const handlePublish = async () => {
+    try {
+      setPublishing(true);
+      setPublishError(null);
+      await publishFlow(flow, flowName);
+      setShowSuccessPopup(true);
+    } catch (error) {
+      setPublishError(error.message);
+    } finally {
+      setPublishing(false);
     }
   };
 
+ 
   return (
     <div className={`${showPreview ? 'col-span-12' : 'col-span-6'}`}>
       <div className="bg-white rounded-lg shadow p-4">
@@ -110,15 +65,61 @@ const FlowEditor = ({
           <h3 className="text-sm font-medium text-gray-900">
             {showPreview ? 'Flow Preview' : 'Flow Editor'}
           </h3>
-          {!showPreview && (
-            <button
-              onClick={() => setShowJsonPreview(!showJsonPreview)}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              {showJsonPreview ? 'Hide JSON' : 'Show JSON'}
-            </button>
-          )}
+          <div className="flex items-center space-x-4">
+            {!showPreview && (
+              <>
+                <button
+                  onClick={() => setShowJsonPreview(!showJsonPreview)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  {showJsonPreview ? 'Hide JSON' : 'Show JSON'}
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                    publishing ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {publishing ? 'Publishing...' : 'Publish to WhatsApp'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Success Popup */}
+        {showSuccessPopup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Flow Published Successfully!</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Your flow has been published to WhatsApp. You can view it in the WhatsApp Flows section.
+                </p>
+                <button
+                  onClick={() => setShowSuccessPopup(false)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {publishError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{publishError}</p>
+          </div>
+        )}
+
         {showPreview ? (
           <WhatsAppPreview screen={flow.screens[activeScreen]} />
         ) : (
@@ -161,9 +162,10 @@ const FlowEditor = ({
                     </button>
                   </div>
                 </div>
-                {flow.screens[activeScreen].layout.children.map((child, childIndex) => (
-                  <div key={childIndex} className="pl-4 border-l-2 border-gray-200">
-                    {child.type === 'Form' && child.children.map((formChild, formIndex) => (
+                {console.log(flow)}
+                {flow.screens[activeScreen].layout.children.map((formChild, formIndex) => (
+                  <div key={formIndex} className="pl-4 border-l-2 border-gray-200">
+                     
                       <div 
                         key={formIndex} 
                         className={`mb-4 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors ${selectedField === formIndex ? 'ring-2 ring-blue-500' : ''}`}
@@ -274,7 +276,7 @@ const FlowEditor = ({
                           </div>
                         )}
                       </div>
-                    ))}
+                    
                   </div>
                 ))}
               </div>

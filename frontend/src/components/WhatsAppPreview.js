@@ -10,13 +10,9 @@ const WhatsAppPreview = ({ screen }) => {
   useEffect(() => {
     const checkFormValidity = () => {
       const requiredFields = [];
-      screen.layout.children.forEach(child => {
-        if (child.type === 'Form') {
-          child.children.forEach(formChild => {
+      screen.layout.children.forEach(formChild => {   
             if (formChild.required && formChild.type !== 'Footer' && formChild.type !== 'TextSubheading') {
-              requiredFields.push(formChild.name);
-            }
-          });
+              requiredFields.push(formChild.name);        
         }
       });
 
@@ -37,80 +33,76 @@ const WhatsAppPreview = ({ screen }) => {
   };
 
   const renderFormContent = () => {
-    return screen.layout.children.map((child, childIndex) => {
-      if (child.type === 'Form') {
-        return child.children.map((formChild, index) => (
-          <div key={index} className="mb-4">
-            {formChild.type === 'TextSubheading' ? (
-              <h4 className="text-gray-800 font-medium mb-2">{formChild.text}</h4>
-            ) : formChild.type === 'Footer' ? (
-              <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
-                <button
-                  className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors duration-200 ${
-                    isValid 
-                      ? 'bg-[#25D366] text-white hover:bg-[#1ea952]' 
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  }`}
-                  disabled={!isValid}
-                >
-                  <span className="block text-center">{formChild.label}</span>
-                </button>
-              </div>
-            ) : (
+    return screen.layout.children.map((formChild, childIndex) => (
+      <div key={childIndex} className="mb-4">
+        {formChild.type === 'TextSubheading' ? (
+          <h4 className="text-gray-800 font-medium mb-2">{formChild.text}</h4>
+        ) : formChild.type === 'Footer' ? (
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+            <button
+              className={`w-full py-3 px-4 rounded-lg font-medium text-center transition-colors duration-200 ${
+                isValid
+                  ? 'bg-[#25D366] text-white hover:bg-[#1ea952]'
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+              disabled={!isValid}
+            >
+              <span className="block text-center">{formChild.label}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="block text-gray-700">
+              {formChild.label}
+              {formChild.required && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            {formChild.type === 'RadioButtonsGroup' && (
               <div className="space-y-2">
-                <label className="block text-gray-700">
-                  {formChild.label}
-                  {formChild.required && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                {formChild.type === 'RadioButtonsGroup' && (
-                  <div className="space-y-2">
-                    {formChild['data-source']?.map((option) => (
-                      <label key={option.id} className="flex items-center p-3 border rounded-lg hover:bg-gray-50">
-                        <input
-                          type="radio"
-                          name={formChild.name}
-                          value={option.id}
-                          checked={formValues[formChild.name] === option.id}
-                          onChange={(e) => handleInputChange(formChild.name, e.target.value)}
-                          className="text-blue-600 focus:ring-blue-500 h-4 w-4"
-                        />
-                        <span className="ml-3 text-gray-700">{option.title}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {formChild.type === 'TextArea' && (
-                  <textarea
-                    placeholder="Type your answer..."
-                    value={formValues[formChild.name] || ''}
-                    onChange={(e) => handleInputChange(formChild.name, e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none overflow-y-auto"
-                    style={{ minHeight: '100px', maxHeight: '200px' }}
-                    rows={3}
-                  />
-                )}
-                {formChild.type === 'Dropdown' && (
-                  <select
-                    value={formValues[formChild.name] || ''}
-                    onChange={(e) => handleInputChange(formChild.name, e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
-                  >
-                    <option value="">Select an option</option>
-                    {formChild['data-source']?.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.title}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                {formChild['data-source']?.map((option) => (
+                  <label key={option.id} className="flex items-center p-3 border rounded-lg hover:bg-gray-50">
+                    <input
+                      type="radio"
+                      name={formChild.name}
+                      value={option.id}
+                      checked={formValues[formChild.name] === option.id}
+                      onChange={(e) => handleInputChange(formChild.name, e.target.value)}
+                      className="text-blue-600 focus:ring-blue-500 h-4 w-4"
+                    />
+                    <span className="ml-3 text-gray-700">{option.title}</span>
+                  </label>
+                ))}
               </div>
             )}
+            {formChild.type === 'TextArea' && (
+              <textarea
+                placeholder="Type your answer..."
+                value={formValues[formChild.name] || ''}
+                onChange={(e) => handleInputChange(formChild.name, e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none overflow-y-auto"
+                style={{ minHeight: '100px', maxHeight: '200px' }}
+                rows={3}
+              />
+            )}
+            {formChild.type === 'Dropdown' && (
+              <select
+                value={formValues[formChild.name] || ''}
+                onChange={(e) => handleInputChange(formChild.name, e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Select an option</option>
+                {formChild['data-source']?.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.title}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-        ));
-      }
-      return null;
-    });
+        )}
+      </div>
+    ));
   };
+  
 
   return (
     <div className="max-w-sm mx-auto border border-gray-200 rounded-lg overflow-hidden shadow-lg bg-gray-100 relative">

@@ -1,6 +1,8 @@
+'use client';
 import React from 'react';
-import { ArrowRight, Upload, Download, Play } from 'lucide-react';
-
+import {  Upload, Download, Play, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import ProfileMenu from './ProfileMenu';
 const Header = ({ 
   flowName, 
   setFlowName, 
@@ -10,12 +12,13 @@ const Header = ({
   setShowPreview,
   fileInputRef 
 }) => {
+  const router = useRouter();
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <button className="p-2 text-gray-400 hover:text-gray-500">
-            <ArrowRight className="h-6 w-6" />
+          <button className="p-2 text-gray-400 hover:text-gray-500" onClick={() => router.back()}>
+            <ArrowLeft className="h-6 w-6" />
           </button>
           <input
             type="text"
@@ -54,6 +57,7 @@ const Header = ({
             <Play className="h-5 w-5 mr-2" />
             {showPreview ? 'Hide Preview' : 'Show Preview'}
           </button>
+          <ProfileMenu />
         </div>
       </div>
     </header>

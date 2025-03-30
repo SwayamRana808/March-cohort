@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Save, Play, ArrowRight, Code, Upload, Download, AlertCircle, Trash2, Edit2, Plus, Wand2, Phone, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Save, Play, ArrowRight, Code, Upload, Download, AlertCircle, Trash2, Edit2, Plus, Wand2, Phone, X, Loader2 } from 'lucide-react';
 import WhatsAppPreview from '@/components/WhatsAppPreview';
 import Header from '@/components/Header';
 import ScreenNavigation from '@/components/ScreenNavigation';
 import FlowEditor from '@/components/FlowEditor';
 import PropertiesPanel from '@/components/PropertiesPanel';
 import AIAssistant from '@/components/AIAssistant';
+import { createClient } from '@/utils/supabase/client';
 
 // Import handlers
 import { validateFlowJson, processFlowData, handleSaveJson, handleLoadJson } from './handlers/flowHandlers';
@@ -17,13 +19,19 @@ import { handleDragStart, handleDrop, handleDragOver } from './handlers/dragDrop
 import { handleGenerateFlow } from './handlers/aiHandlers';
 
 const FlowBuilderPage = () => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [flowName, setFlowName] = useState('New Flow');
   const [showJsonPreview, setShowJsonPreview] = useState(false);
   const [error, setError] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedField, setSelectedField] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [currentFlowId, setCurrentFlowId] = useState(null);
   const fileInputRef = useRef(null);
+  const supabase = createClient();
+
   const [flow, setFlow] = useState({
     version: "7.0",
     screens: [
@@ -44,8 +52,48 @@ const FlowBuilderPage = () => {
       }
     ]
   });
+
   const [activeScreen, setActiveScreen] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+
+  // Load existing flow if flowId is present in URL
+  useEffect(() => {
+    const loadExistingFlow = async () => {
+      const flowId = searchParams.get('flowId');
+      if (!flowId) return;
+
+      setLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/getFlow/${flowId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch flow');
+        }
+
+        const data = await response.json();
+        setFlowName(data.flowName);
+        setFlow(data.flowData);
+        setCurrentFlowId(flowId);
+      } catch (error) {
+        console.error('Error loading flow:', error);
+        setError('Failed to load flow. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadExistingFlow();
+  }, [searchParams, router, supabase.auth]);
 
   // Wrapper functions to pass state setters to handlers
   const handleFlowData = (data) => {
@@ -53,7 +101,7 @@ const FlowBuilderPage = () => {
   };
 
   const handleSave = () => {
-    handleSaveJson(flow, flowName, setError);
+    handleSaveJson(flow, flowName, setError, currentFlowId);
   };
 
   const handleLoad = (input) => {
@@ -91,6 +139,17 @@ const FlowBuilderPage = () => {
   const handleGenerateFlowWrapper = () => {
     handleGenerateFlow(aiPrompt, setError, setIsGenerating, handleFlowData, setAiPrompt);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="text-gray-600">Loading flow...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

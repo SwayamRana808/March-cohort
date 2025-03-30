@@ -1,3 +1,4 @@
+import { createClient } from '@/utils/supabase/client';
 export const validateFlowJson = (json) => {
   if (!json.version || !Array.isArray(json.screens)) {
     throw new Error('Invalid flow format: missing version or screens array');
@@ -27,23 +28,50 @@ export const processFlowData = (data, setFlow, setFlowName, setActiveScreen, set
     if (!firstScreen.title || !firstScreen.layout || !firstScreen.layout.children) {
       throw new Error('Invalid screen format: Missing required fields');
     }
-
-    // Create a new flow object with the correct structure
+    console.log("data this is  ",data);
+    // Create a new flow object preserving all original fields
     const newFlow = {
+      name: data.name,
       version: data.version || "7.0",
-      screens: data.screens.map(screen => ({
-        ...screen,
+      data_api_version: data.data_api_version,
+      routing_model: data.routing_model,
+      categories: data.categories || ["OTHER"],
+      publish: false,
+      screens: data.screens.map((screen,index) => ({
+        id: screen.id,
+        title: screen.title,
+        ...(index === data.screens.length - 1 && { terminal: true, success: true }),
         layout: {
-          ...screen.layout,
-          children: screen.layout.children.map(child => {
-            if (child.type === 'Form') {
-              return {
-                ...child,
-                children: Array.isArray(child.children) ? child.children : []
-              };
-            }
-            return child;
-          })
+          type: screen.layout.type || "SingleColumnLayout",
+          children: screen.layout.children.map(child => ({
+            ...child,
+            // Ensure required properties exist for specific types
+            ...(child.type === 'TextSubheading' && { text: child.text || '' }),
+            ...(child.type === 'RadioButtonsGroup' && {
+              label: child.label || '',
+              name: child.name || `field_${Date.now()}`,
+              required: child.required ?? true,
+              'data-source': child['data-source'] || []
+            }),
+            ...(child.type === 'Dropdown' && {
+              label: child.label || '',
+              name: child.name || `field_${Date.now()}`,
+              required: child.required ?? true,
+              'data-source': child['data-source'] || []
+            }),
+            ...(child.type === 'TextArea' && {
+              label: child.label || '',
+              name: child.name || `field_${Date.now()}`,
+              required: child.required ?? true
+            }),
+            ...(child.type === 'Footer' && {
+              label: child.label || 'Next ➡',
+              'on-click-action': child['on-click-action'] || {
+                name: 'data_exchange',
+                payload: {}
+              }
+            })
+          }))
         }
       }))
     };
@@ -61,10 +89,44 @@ export const processFlowData = (data, setFlow, setFlowName, setActiveScreen, set
   }
 };
 
-export const handleSaveJson = (flow, flowName, setError) => {
+export const handleSaveJson = async (flow, flowName, setError, currentFlowId) => {
   try {
     validateFlowJson(flow);
-    const blob = new Blob([JSON.stringify(flow, null, 2)], { type: 'application/json' });
+    
+    // Get the user's session
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('No active session');
+    }
+
+    // Save to backend
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/flows/save`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        flowName,
+        flowData: flow,
+        flowId: currentFlowId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to save flow');
+    }
+
+    // Save as JSON file locally with name and categories fields preserved
+    console.log("flow this is  ",flow);
+    const flowWithMetadata = {
+      name: flowName,
+      categories: flow.categories || [], // Preserve original categories if they exist
+      ...flow
+    };
+    const blob = new Blob([JSON.stringify(flowWithMetadata, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
